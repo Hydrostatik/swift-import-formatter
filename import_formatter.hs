@@ -1,7 +1,7 @@
 #!/usr/bin/env stack
 -- stack runghc --resolver lts-19.4
 
-import Control.Monad ( filterM, when )
+import Control.Monad ( filterM, when, forM )
 import Data.Char ( toLower )
 import Data.List ( group, isPrefixOf, isSuffixOf, sortOn )
 import System.Directory
@@ -11,28 +11,26 @@ import System.Directory
     , listDirectory
     )
 
-ignoreDirectories :: [FilePath]
-ignoreDirectories = ["Pods", "Modules"]
+ignoreDirectory :: FilePath -> Bool
+ignoreDirectory x = any (`isSuffixOf` x) ["Pods", "Modules"]
 
-ignoreSwiftFiles :: [FilePath]
-ignoreSwiftFiles = []
+ignoreFile :: FilePath -> Bool
+ignoreFile _ = False
 
 trimSuffix :: String -> String -> String
 trimSuffix s w = if s `isSuffixOf` w then take (length w - length s) w else w
 
 getAllSwiftFiles :: FilePath -> IO [FilePath]
-getAllSwiftFiles filePath = getAllSwiftFiles' [] (Just [filePath])
-
-getAllSwiftFiles' :: [FilePath] -> Maybe [FilePath] -> IO [FilePath]
-getAllSwiftFiles' files Nothing = return files
-getAllSwiftFiles' files (Just directories) = do
-    dirs <- filterM doesDirectoryExist =<< mconcat ((\x -> (fmap . fmap . fmap) (path x) listDirectory x) <$> fdirs)
-    fil <- filterM doesFileExist =<< mconcat ((\x -> (fmap . fmap . fmap) (path x) listDirectory x) <$> fdirs)
-    if null dirs then getAllSwiftFiles' (swiftFiles fil <> files) Nothing else getAllSwiftFiles' (swiftFiles fil <> files) (Just dirs)
-    where 
-        path x y = x <> "/" <> y
-        fdirs = filter (\x -> not $ any (`isSuffixOf` x) ignoreDirectories) directories
-        swiftFiles = filter (\x -> ".swift" `isSuffixOf` x && not (any (`isSuffixOf` x) ignoreSwiftFiles))
+getAllSwiftFiles filePath
+  | ignoreDirectory filePath = pure []
+  | otherwise = do
+    contents <- listDirectory filePath
+    fmap concat . forM contents $ \item -> do
+      let item' = filePath <> "/" <> item
+      isDir <- doesDirectoryExist item'
+      if isDir
+         then getAllSwiftFiles item'
+         else pure [item' | ".swift" `isSuffixOf` item', not $ ignoreFile item']
 
 fixImports :: FilePath -> IO ()
 fixImports fileName = do
