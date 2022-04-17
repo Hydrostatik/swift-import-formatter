@@ -5,7 +5,7 @@
 https://docs.haskellstack.org/en/stable/install_and_upgrade/
 
 ### Usage:
-Place `import_formatter.sh` inside a script folder or at the root of the project directory. and simply run `./import_formatter.sh`
+Place `import_formatter.hs` inside a script folder or at the root of the project directory. and simply run `./import_formatter.hs`
 
 ### Features:
 If certain files need to be ignored due to macro imports. Please add them to the `ignoreSwiftFiles` section in the script. This also applies to subDirectories that you want to ignore. They have a separate `ignoreDirectories` section.
