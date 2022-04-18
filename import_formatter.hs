@@ -1,7 +1,7 @@
 #!/usr/bin/env stack
 -- stack runghc --resolver lts-19.4
 
-import Control.Monad ( filterM, when, forM )
+import Control.Monad ( filterM, when, forM, unless )
 import Data.Char ( toLower )
 import Data.List ( group, isPrefixOf, isSuffixOf, sortOn )
 import System.Directory
@@ -18,7 +18,9 @@ ignoreFile :: FilePath -> Bool
 ignoreFile _ = False
 
 trimSuffix :: String -> String -> String
-trimSuffix s w = if s `isSuffixOf` w then take (length w - length s) w else w
+trimSuffix s w
+    | s `isSuffixOf` w = take (length w - length s) w
+    | otherwise = w
 
 getAllSwiftFiles :: FilePath -> IO [FilePath]
 getAllSwiftFiles filePath
@@ -35,10 +37,11 @@ getAllSwiftFiles filePath
 fixImports :: FilePath -> IO ()
 fixImports fileName = do
     contents <- lines <$> readFile fileName
-    let imports = filter ("import" `isPrefixOf`) contents
-    putStrLn $ "Number of imports found for" <> fileName <> ": " <> show (length imports)
-    let newContents = unlines $ insertSorted imports (mconcat . removeExtraNewLines $ filter (not . isPrefixOf "import") contents)
-    when (not (null newContents) && length imports > 3) $ writeFile fileName newContents
+    let import_predicate = ("import" `isPrefixOf`)
+    let (imports, not_imports) = (filter import_predicate contents, filter (not . import_predicate) contents)
+    when (length imports > 1) $ do
+    let newContents = unlines $ insertSorted imports (mconcat $ removeExtraNewLines not_imports)
+    unless (null newContents) $ writeFile fileName newContents
     putStrLn $ fileName <> " has been formatted!"
     where
         removeExtraNewLines lines = map (\x -> if not (null (mconcat x) && length x > 1) then x else [""]) $ group lines
